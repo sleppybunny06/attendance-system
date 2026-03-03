@@ -13,19 +13,39 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+
+    const loginEndpoints = ['/api/auth/login'];
+
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        login(data.token, data.user);
-        navigate('/');
-      } else {
-        setError(data.error);
+      let networkError: Error | null = null;
+
+      for (const endpoint of loginEndpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          });
+
+          const contentType = res.headers.get('content-type') || '';
+          const data = contentType.includes('application/json')
+            ? await res.json()
+            : { error: 'Login endpoint did not return JSON.' };
+
+          if (res.ok && data?.token && data?.user) {
+            login(data.token, data.user);
+            navigate('/');
+            return;
+          }
+
+          setError(data?.error || 'Unable to sign in as guest admin.');
+          return;
+        } catch (err) {
+          networkError = err as Error;
+        }
       }
+
+      throw networkError || new Error('Unable to reach login endpoint.');
     } catch (err) {
       setError('Something went wrong. Please try again.');
     } finally {
