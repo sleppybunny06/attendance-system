@@ -97,25 +97,30 @@ async function startServer() {
 
   // Auth Routes
   app.post("/api/auth/login", (req, res) => {
-    const { email, password } = req.body;
-    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-      return res.status(401).json({ error: "Invalid credentials" });
+    const guestAdmin = db.prepare("SELECT * FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1").get() as any;
+    if (!guestAdmin) {
+      return res.status(500).json({ error: "No admin account available" });
     }
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department } });
+
+    const token = jwt.sign(
+      { id: guestAdmin.id, email: guestAdmin.email, role: guestAdmin.role, name: guestAdmin.name },
+      JWT_SECRET,
+    );
+
+    res.json({
+      token,
+      user: {
+        id: guestAdmin.id,
+        name: guestAdmin.name,
+        email: guestAdmin.email,
+        role: guestAdmin.role,
+        department: guestAdmin.department,
+      },
+    });
   });
 
   app.post("/api/auth/register", (req, res) => {
-    const { name, email, password, department } = req.body;
-    try {
-      const hash = bcrypt.hashSync(password, 10);
-      const result = db.prepare("INSERT INTO users (name, email, password_hash, department) VALUES (?, ?, ?, ?)")
-        .run(name, email, hash, department);
-      res.json({ success: true, id: result.lastInsertRowid });
-    } catch (err) {
-      res.status(400).json({ error: "Email already exists" });
-    }
+    res.status(403).json({ error: "Registration is disabled. Use guest admin sign in." });
   });
 
   // Attendance Routes

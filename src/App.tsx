@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import DashboardLayout from './components/DashboardLayout';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import LeaveRequestForm from './pages/LeaveRequestForm';
@@ -37,7 +36,6 @@ export default function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
             <Route path="/" element={<PrivateRoute><DashboardRouter /></PrivateRoute>} />
             <Route path="/leaves" element={<PrivateRoute><LeaveRequestForm /></PrivateRoute>} />
             <Route path="/employees" element={<PrivateRoute><AdminRoute><EmployeeList /></AdminRoute></PrivateRoute>} />
