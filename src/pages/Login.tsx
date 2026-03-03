@@ -14,10 +14,17 @@ export default function Login() {
     setIsLoading(true);
     setError('');
 
-    const loginEndpoints = ['/api/auth/login'];
+    const configuredApiBase = ((import.meta as any).env?.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
+    const currentOrigin = window.location.origin.replace(/\/$/, '');
+    const loginEndpoints = [
+      '/api/auth/login',
+      configuredApiBase ? `${configuredApiBase}/api/auth/login` : null,
+      currentOrigin.includes('localhost') ? 'http://localhost:3000/api/auth/login' : null,
+    ].filter((endpoint): endpoint is string => Boolean(endpoint));
 
     try {
       let networkError: Error | null = null;
+      let lastErrorMessage = 'Unable to sign in as guest admin.';
 
       for (const endpoint of loginEndpoints) {
         try {
@@ -38,14 +45,26 @@ export default function Login() {
             return;
           }
 
-          setError(data?.error || 'Unable to sign in as guest admin.');
+          lastErrorMessage = data?.error || lastErrorMessage;
+
+          // A 404 usually means this endpoint doesn't exist in the current environment.
+          // Continue to the next candidate endpoint before surfacing an error.
+          if (res.status === 404) {
+            continue;
+          }
+
+          setError(lastErrorMessage);
           return;
         } catch (err) {
           networkError = err as Error;
         }
       }
 
-      throw networkError || new Error('Unable to reach login endpoint.');
+      if (networkError) {
+        throw networkError;
+      }
+
+      setError(lastErrorMessage);
     } catch (err) {
       setError('Something went wrong. Please try again.');
     } finally {
