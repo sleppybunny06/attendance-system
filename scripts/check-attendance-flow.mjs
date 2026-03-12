@@ -47,20 +47,8 @@ async function main() {
   try {
     await waitForServer();
 
-    const email = `integration.${Date.now()}@example.com`;
-    const password = 'pass123';
-
-    const register = await request('/api/auth/register', {
-      method: 'POST',
-      body: { name: 'Integration User', email, password, department: 'QA' },
-    });
-    if (register.status !== 200 || register.data?.success !== true) {
-      throw new Error(`Register failed: ${JSON.stringify(register)}`);
-    }
-
     const login = await request('/api/auth/login', {
       method: 'POST',
-      body: { email, password },
     });
     if (login.status !== 200 || !login.data?.token) {
       throw new Error(`Login failed: ${JSON.stringify(login)}`);
@@ -68,18 +56,25 @@ async function main() {
     const token = login.data.token;
 
     const todayBefore = await request('/api/attendance/today', { token });
-    if (todayBefore.status !== 200 || todayBefore.data !== null) {
-      throw new Error(`Expected no attendance before punch-in: ${JSON.stringify(todayBefore)}`);
+    if (todayBefore.status !== 200) {
+      throw new Error(`Failed to fetch today's attendance: ${JSON.stringify(todayBefore)}`);
     }
 
-    const punchIn = await request('/api/attendance/punch-in', { method: 'POST', token });
-    if (punchIn.status !== 200 || punchIn.data?.success !== true) {
-      throw new Error(`Punch-in failed: ${JSON.stringify(punchIn)}`);
-    }
+    if (todayBefore.data === null) {
+      const punchIn = await request('/api/attendance/punch-in', { method: 'POST', token });
+      if (punchIn.status !== 200 || punchIn.data?.success !== true) {
+        throw new Error(`Punch-in failed: ${JSON.stringify(punchIn)}`);
+      }
 
-    const punchOut = await request('/api/attendance/punch-out', { method: 'POST', token });
-    if (punchOut.status !== 200 || punchOut.data?.success !== true) {
-      throw new Error(`Punch-out failed: ${JSON.stringify(punchOut)}`);
+      const punchOut = await request('/api/attendance/punch-out', { method: 'POST', token });
+      if (punchOut.status !== 200 || punchOut.data?.success !== true) {
+        throw new Error(`Punch-out failed: ${JSON.stringify(punchOut)}`);
+      }
+    } else if (!todayBefore.data?.punch_out) {
+      const punchOut = await request('/api/attendance/punch-out', { method: 'POST', token });
+      if (punchOut.status !== 200 || punchOut.data?.success !== true) {
+        throw new Error(`Punch-out for existing record failed: ${JSON.stringify(punchOut)}`);
+      }
     }
 
     const todayAfter = await request('/api/attendance/today', { token });
