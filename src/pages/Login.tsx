@@ -35,14 +35,38 @@ export default function Login() {
           });
 
           const contentType = res.headers.get('content-type') || '';
-          const data = contentType.includes('application/json')
-            ? await res.json()
-            : { error: 'Login endpoint did not return JSON.' };
+          let data: any = null;
+
+          if (contentType.includes('application/json')) {
+            data = await res.json();
+          } else {
+            const rawBody = await res.text();
+            try {
+              data = JSON.parse(rawBody);
+            } catch {
+              data = null;
+            }
+          }
 
           if (res.ok && data?.token && data?.user) {
             login(data.token, data.user);
             navigate('/');
             return;
+          }
+
+          if (!data) {
+            // In some environments, unknown routes are rewritten to index.html (200 text/html).
+            // Treat that as a non-matching endpoint and continue trying fallbacks.
+            if (res.ok) {
+              continue;
+            }
+
+            if (res.status === 404) {
+              continue;
+            }
+
+            lastErrorMessage = 'Login endpoint did not return JSON.';
+            continue;
           }
 
           lastErrorMessage = data?.error || lastErrorMessage;
